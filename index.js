@@ -24,7 +24,7 @@ function saveDB() {
   try {
     fs.writeFileSync(dbPath, JSON.stringify(db));
   } catch (e) {
-    throw new Error("Failed to write database. Check that the location is writeable");
+    throw new Error("Failed to write database. Check that the location is writeable.");
   }
 }
 
@@ -57,19 +57,19 @@ Object.keys(ifaces).forEach(function (ifname) {
 
 console.log('This server\'s address(es): ' + addresses);
 
-var dgramClient = dgram.createSocket('udp4');
-dgramClient.bind(config.ports.udp, function() {
+var dgramClient = dgram.createSocket({'type': 'udp4', reuseAddr: true});
+dgramClient.bind({'address': 'localhost', 'port': config.ports.udp}, function() {
   dgramClient.setBroadcast(true);
   dgramClient.setMulticastTTL(128);
   console.log('UDP port: ' + config.ports.udp);
-});
 
-addresses.forEach(function(address) {
-  console.log('Broadcasting to ' + ip.subnet(address, config.subnet).broadcastAddress);
-  setInterval(function() {
-    var message = new Buffer(JSON.stringify({'ports': config.ports}));
-    dgramClient.send(message, 0, message.length, config.ports.udp, ip.subnet(address, config.subnet).broadcastAddress);
-  }, 150);
+  addresses.forEach(function(address) {
+    console.log('Broadcasting to ' + ip.subnet(address, config.subnet).broadcastAddress);
+    setInterval(function() {
+      var message = new Buffer(JSON.stringify({'ports': config.ports}));
+      dgramClient.send(message, 0, message.length, config.ports.udp, ip.subnet(address, config.subnet).broadcastAddress);
+    }, 150);
+  });
 });
 
 var checkerboard = new (require('checkerboard')).Server(config.ports.ws, db);
