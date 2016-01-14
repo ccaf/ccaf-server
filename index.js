@@ -20,6 +20,7 @@ try {
 
 var dbPath = path.resolve(base, config.db);
 var appsPath = path.resolve(base, config.apps);
+var snippetsPath = path.resolve(base, 'public', 'snippets');
 
 var db = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath)) : {};
 
@@ -48,6 +49,19 @@ fs.readdirSync(appsPath)
     try {
       var app = JSON.parse(fs.readFileSync(path.resolve(appsPath, dir, 'package.json')));
       db.apps[dir] = app;
+    } catch (e) {}
+  });
+  
+fs.readdirSync(snippetsPath)
+  .filter(function(maybeDir) {
+    try {
+      return fs.statSync(path.resolve(snippetsPath, maybeDir)).isFile();
+    } catch (e) { return false; }
+  })
+  .forEach(function(snippet) {
+    try {
+      var content = fs.readFileSync(path.resolve(snippetsPath, snippet), 'utf8');
+      handlebars.registerPartial(snippet.split('.')[0], '"' + content + '"');
     } catch (e) {}
   });
   
@@ -108,8 +122,8 @@ http.createServer(function(request, response) {
       }
 
       response.writeHead(200);
-      var tpl = handlebars.compile(file);
-      response.write(tpl(config.ports), "binary");
+      
+      response.write(path.extname(filename) === '.js' ? handlebars.compile(file)(config.ports) : file, "binary");
       response.end();
     });
   });
