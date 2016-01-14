@@ -61,7 +61,7 @@ fs.readdirSync(snippetsPath)
   .forEach(function(snippet) {
     try {
       var content = fs.readFileSync(path.resolve(snippetsPath, snippet), 'utf8');
-      handlebars.registerPartial(snippet.split('.')[0], '"' + content + '"');
+      handlebars.registerPartial(snippet.split('.')[0], '' + content + '');
     } catch (e) {}
   });
   
