@@ -1,3 +1,5 @@
+var http = require('http');
+var url = require('url');
 var fs = require('fs');
 var path = require('path');
 var os = require('os');
@@ -5,6 +7,7 @@ var dgram = require('dgram');
   
 var ip = require('ip');
 var connect = require('connect');
+var handlebars = require('handlebars');
 
 var config;
 var base = __dirname, configPath = 'config.json';
@@ -22,7 +25,9 @@ var db = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath)) : {};
 
 function saveDB() {
   try {
+    config = db.config;
     fs.writeFileSync(dbPath, JSON.stringify(db));
+    fs.writeFileSync(path.resolve(base, configPath), JSON.stringify(config));
   } catch (e) {
     throw new Error("Failed to write database. Check that the location is writeable.");
   }
@@ -31,6 +36,7 @@ function saveDB() {
 var dbInterval = setInterval(saveDB, 60 * 1000);
 
 db.apps = {};
+db.config = config;
 
 fs.readdirSync(appsPath)
   .filter(function(maybeDir) {
@@ -73,13 +79,40 @@ dgramClient.bind({'address': 'localhost', 'port': config.ports.udp}, function() 
 });
 
 var checkerboard = new (require('checkerboard')).Server(config.ports.ws, db);
+checkerboard.on('restart', function() { saveDB(); process.exit(0); });
+checkerboard.on('stop', function() { saveDB(); process.exit(1); });
 console.log('Websocket port: ' + config.ports.ws);
 
-var app = connect();
+http.createServer(function(request, response) {
 
-app.use(function(req, res, next){ 
-  res.setHeader('Last-Modified', (new Date()).toUTCString());
-  next(); 
-}).use('/', connect.static(__dirname + '/public/client')).use(connect.static(__dirname + '/public')).listen(config.ports.http);
+  var uri = url.parse(request.url).pathname
+    , filename = path.join(process.cwd(), "build", "public", uri);
+  
+  fs.stat(filename, function(err, stat) {
+    if (err) return;
+    if(!stat.isDirectory() && !stat.isFile()) {
+      response.writeHead(404, {"Content-Type": "text/plain"});
+      response.write("404 Not Found\n");
+      response.end();
+      return;
+    }
+
+    if (stat.isDirectory()) filename += '/index.html';
+
+    fs.readFile(filename, "binary", function(err, file) {
+      if(err) {        
+        response.writeHead(500, {"Content-Type": "text/plain"});
+        response.write(err + "\n");
+        response.end();
+        return;
+      }
+
+      response.writeHead(200);
+      var tpl = handlebars.compile(file);
+      response.write(tpl(config.ports), "binary");
+      response.end();
+    });
+  });
+}).listen(config.ports.http);
 
 console.log('HTTP port: ' + config.ports.http);
