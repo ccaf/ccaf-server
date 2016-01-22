@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "checkerboard": "^0.3.2",
+    "checkerboard": "^0.4.0",
     "connect": "^1.9.2",
     "ip": "^0.3.3"
   },
