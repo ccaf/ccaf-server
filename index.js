@@ -96,7 +96,7 @@ Object.keys(ifaces).forEach(function (ifname) {
 
 console.log('This server\'s address(es): ' + addresses);
 
-
+/*
 
 var dgramClient = dgram.createSocket({'type': 'udp4', reuseAddr: true});
 dgramClient.bind({'address': 'localhost', 'port': config.ports.udp}, function() {
@@ -112,6 +112,8 @@ dgramClient.bind({'address': 'localhost', 'port': config.ports.udp}, function() 
     }, 150);
   });
 });
+
+*/
 
 // starts the sync server prepopulated with the loaded database
 var checkerboard = new (require('checkerboard')).Server(config.ports.ws, db);
