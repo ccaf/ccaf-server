@@ -1,0 +1,111 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "definitions": {
+	/* An app provides all the information needed to launch an app on the client,
+	 * as well as display information for the console. The KEY for the app object,
+	 * which is the same as the root folder for that app, is what is used to
+	 * reference it throughout the software. For example, apps/whiteboard contains
+	 * package.json (which follows this schema), modules and the icon. The key
+	 * for that app would be "whiteboard". All filenames are relative to the
+	 * whiteboard directory (e.g. "icon.png" -> "apps/whiteboard/icon.png"
+	 */
+        "app": {
+	    "type": "object",
+	    "required": ["client", "icon", "title"],
+	    "properties": {
+		"client":   { "type": "string" }, // the name of the client script
+		"icon":	    { "type": "string" }, // 64x64 px transparent png
+		"title":    { "type": "string" }  // pretty title for display
+	    }
+        },
+	/* The phaseState is the current state of a single classroom. It enumerates
+	 * all the app instances and which users are connected to which instances.
+	 */
+	"phaseState": {
+	    "type": "object",
+	    "required": ["instances", "userInstanceMapping"],
+	    "properties": {
+		"instances": {
+		    "type": "object",
+		    "additionalProperties": { "$ref": "#/definitions/instance" }
+		},
+		"userInstanceMapping": {
+		    "type": "object",
+		    "additionalProperties": {
+			"oneOf": [
+			    { "type": "string" },
+			    { "type": "number" }
+			]
+		    }
+		}
+	    }
+	},
+	/* The classroom object holds all data about a classroom. This includes configuration
+	 * information, such as the classroom name and students; activity information; and
+	 * current state information such as the classroom state and connected users.
+	 */
+	"classroom": {
+	    "type": "object",
+	    "required": ["id", "name", "users", "userStatus", "currentActivity", "currentState", "activities"],
+	    "properties": {
+		"id": {
+		    "type": "number"
+		},
+		"name": {
+		    "type": "string"
+		},
+		"users": {
+		    "type": "object",
+		    "additionalProperties": {
+			"type": "object",
+			"properties": {
+			    "id": { "type": "number" },
+			    "name": { "type": "string" }
+			}
+		    }
+		},
+		"userStatus": {
+		    "type": "object",
+		    "additionalProperties": {
+			"anyOf": [
+			    { "type": "boolean" },
+			    { "type": "number" }
+			]
+		    }
+		},
+		"currentActivity": {
+		    "anyOf" [
+			{ "type": "number" },
+			{ "type": "null" }
+		    ]
+		},
+		"currentState": { "$ref": "#/definitions/phaseState" },
+		"activities": {
+		    "type": "object",
+		    "additionalProperties": { "$ref": "#/definitions/activity" }
+		}
+	    }
+	},
+	"activity": {
+	    "type": "object",
+	    "properties": {
+		"name": { "type": "string" },
+		"phases": {
+		    "type": "object",
+		    "additionalProperties": { "$ref": "#/definitions/phaseState" }
+		}
+	    }
+	}
+    },
+    "type": "object",
+    "properties": {
+        "apps": {
+	    "type": "object",
+	    "additionalProperties": { "$ref": "#/definitions/app" }
+	},
+	"classrooms": {
+	    "type": "object",
+	    "additionalProperties": { "$ref": "#/definitions/classroom" }
+	}
+    }
+}
