@@ -5,7 +5,7 @@
 	 * as well as display information for the console. The KEY for the app object,
 	 * which is the same as the root folder for that app, is what is used to
 	 * reference it throughout the software. For example, apps/whiteboard contains
-	 * package.json (which follows this schema), modules and the icon. The key
+	 * package.json (which follows this schema, modules and the icon. The key
 	 * for that app would be "whiteboard". All filenames are relative to the
 	 * whiteboard directory (e.g. "icon.png" -> "apps/whiteboard/icon.png"
 	 */

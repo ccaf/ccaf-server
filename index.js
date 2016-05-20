@@ -4,7 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var os = require('os');
 var dgram = require('dgram');
-  
+
 var ip = require('ip');
 var handlebars = require('handlebars');
 
@@ -18,7 +18,7 @@ try {
   config = JSON.parse(fs.readFileSync(path.resolve(base, configPath)));
 } catch (e) {
   throw new Error("Failed to read configuration file. Check that the config file exists and the path is correct.");
-};
+}
 
 // dbPath and appsPath are configurable (in config.json)
 var dbPath = path.resolve(base, config.db);
@@ -33,11 +33,15 @@ db.config = config;
 
 function saveDB() {
   try {
-  
+
     // extract configuration data from the database object and write it to its own file.
     config = db.config;
-    fs.writeFileSync(dbPath, JSON.stringify(db));
-    fs.writeFileSync(path.resolve(base, configPath), JSON.stringify(config));
+    fs.writeFile(dbPath, JSON.stringify(db), function(err) {
+      if (err)
+        throw new Error("Failed to write DB! Quitting to prevent use during possible further data loss.");
+
+      fs.writeFileSync(path.resolve(base, configPath), JSON.stringify(config));
+    });
   } catch (e) {
     throw new Error("Failed to write database. Check that the location is writeable.");
   }
@@ -96,27 +100,8 @@ Object.keys(ifaces).forEach(function (ifname) {
 
 console.log('This server\'s address(es): ' + addresses);
 
-/*
-
-var dgramClient = dgram.createSocket({'type': 'udp4', reuseAddr: true});
-dgramClient.bind({'address': 'localhost', 'port': config.ports.udp}, function() {
-  dgramClient.setBroadcast(true);
-  dgramClient.setMulticastTTL(128);
-  console.log('UDP port: ' + config.ports.udp);
-
-  addresses.forEach(function(address) {
-    console.log('Broadcasting to ' + ip.subnet(address, config.subnet).broadcastAddress);
-    setInterval(function() {
-      var message = new Buffer(JSON.stringify({'ports': config.ports}));
-      dgramClient.send(message, 0, message.length, config.ports.udp, ip.subnet(address, config.subnet).broadcastAddress);
-    }, 150);
-  });
-});
-
-*/
-
 // starts the sync server prepopulated with the loaded database
-var checkerboard = new (require('checkerboard')).Server(config.ports.ws, db);
+var checkerboard = new (require('checkerboard')).Server(config.ports.ws, db, {'log': true, 'logDir': path.resolve(__dirname, 'public', 'logs')});
 
 // when we send a message of the form {'channel': ..., 'message': ...}, checkerboard
 // will emit an event of the channel name. so, on the client we can send the following
@@ -135,7 +120,7 @@ http.createServer(function(request, response) {
 
   var uri = url.parse(request.url).pathname;
   var filename = path.join(process.cwd(), "build", "public", uri);
-  
+
   fs.stat(filename, function(err, stat) {
     if (err) return;
     if(!stat.isDirectory() && !stat.isFile()) {
@@ -148,7 +133,7 @@ http.createServer(function(request, response) {
     if (stat.isDirectory()) filename += '/index.html';
 
     fs.readFile(filename, "binary", function(err, file) {
-      if(err) {        
+      if(err) {
         response.writeHead(500, {"Content-Type": "text/plain"});
         response.write(err + "\n");
         response.end();
@@ -156,7 +141,7 @@ http.createServer(function(request, response) {
       }
 
       response.writeHead(200);
-      
+
       response.write(path.extname(filename) === '.js' ? handlebars.compile(file)(config.ports) : file, "binary");
       response.end();
     });
