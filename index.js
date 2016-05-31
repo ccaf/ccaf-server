@@ -148,7 +148,18 @@ http.createServer(function(request, response) {
     });
 
     // The largest timestamp is the latest and thus the file that was created for the current session.
-    uri = "/logs/" + Math.max(null, files) + '.log';
+    uri = "/logs/" + Math.max.apply(null, files) + '.log';
+  }
+
+  if (uri === "/logs/latest.initial") {
+    // The log files are labeled as the UNIX timestamp when the log file was created, with a
+    // '.log extension'. So we first read all the timestamps of the log files.
+    var files = fs.readdirSync(path.join(process.cwd(), "build", "public", "logs")).map(function(logFile) {
+      return parseInt(path.basename(logFile, '.log'));
+    });
+
+    // The largest timestamp is the latest and thus the file that was created for the current session.
+    uri = "/logs/" + Math.max.apply(null, files) + '.log.initial';
   }
 
   // Serve files from the public folder.
