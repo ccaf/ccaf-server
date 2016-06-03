@@ -1,4 +1,5 @@
 var http = require('http');
+var https = require('https');
 var url = require('url');
 var fs = require('fs');
 var path = require('path');
@@ -109,13 +110,23 @@ Object.keys(ifaces).forEach(function (ifname) {
 // Print IP addresses to stdout.
 console.log('This server\'s address(es): ' + addresses.join(', '));
 
+var httpServer = http.createServer(function(req, res) {
+  res.writeHead(301, { "Location": "https://" + req.headers.host + req.url });
+  res.end();
+}).listen(80);
+
+var httpsOptions = {
+  'key': fs.readFileSync(path.resolve(__dirname, 'domain.key')),
+  'cert': fs.readFileSync(path.resolve(__dirname, 'domain.crt'))
+};
+
 // The infamous super simple static server.
 // At first, I used a connect static server. but what we really needed was a way
 // to both serve static files and occasionally include some template variables and partials.
 // Currently, the websocket port that the server is using is populated into .js files
 // that are sent out, and the "snippets" feature above allows for modularity in settings
 // for RequireJS.
-var httpServer = http.createServer(function(request, response) {
+var httpsServer = https.createServer(httpsOptions, function(request, response) {
   var uri = url.parse(request.url).pathname;
 
   // "Symlink" /logs/latest to the most recent log file (created during the current server session).
@@ -173,11 +184,11 @@ var httpServer = http.createServer(function(request, response) {
       response.end();
     });
   });
-}).listen(config.ports.http);
+}).listen(443);
 
 // Starts the sync folder prepopulated with the embedded database. Also enables logging
 // to the logs folder.
-var checkerboard = new (require('checkerboard')).Server(httpServer, db, {'log': true, 'logDir': path.resolve(__dirname, 'public', 'logs')});
+var checkerboard = new (require('checkerboard')).Server(httpsServer, db, {'log': true, 'logDir': path.resolve(__dirname, 'public', 'logs')});
 
 // When the browser sends a message of the form {'channel': ..., 'message': ...}, checkerboard
 // will emit an event of the channel name. So, on the client we can send the following
@@ -188,6 +199,8 @@ checkerboard.on('restart', function() { saveDB(); process.exit(0); });
 
 // Exit with condition code - prevents nodemon and forever-monitor from restarting automatically.
 checkerboard.on('stop', function() { saveDB(); process.exit(1); });
+
+
 
 // Debug info to stdout.
 console.log('HTTP port: ' + config.ports.http);
