@@ -109,32 +109,13 @@ Object.keys(ifaces).forEach(function (ifname) {
 // Print IP addresses to stdout.
 console.log('This server\'s address(es): ' + addresses.join(', '));
 
-// Starts the sync folder prepopulated with the embedded database. Also enables logging
-// to the logs folder.
-var checkerboard = new (require('checkerboard')).Server(config.ports.ws, db, {'log': true, 'logDir': path.resolve(__dirname, 'public', 'logs')});
-
-// Debug info: print WebSocket port to terminal.
-console.log('WebSocket port: ' + config.ports.ws);
-
-// When the browser sends a message of the form {'channel': ..., 'message': ...}, checkerboard
-// will emit an event of the channel name. So, on the client we can send the following
-// messages and pick them up in the server without mucking around with checkerboard code.
-
-// Clean exit - triggers a restart in nodemon and forever-monitor.
-checkerboard.on('restart', function() { saveDB(); process.exit(0); });
-
-// Exit with condition code - prevents nodemon and forever-monitor from restarting automatically.
-checkerboard.on('stop', function() { saveDB(); process.exit(1); });
-
-
-
 // The infamous super simple static server.
 // At first, I used a connect static server. but what we really needed was a way
 // to both serve static files and occasionally include some template variables and partials.
 // Currently, the websocket port that the server is using is populated into .js files
 // that are sent out, and the "snippets" feature above allows for modularity in settings
 // for RequireJS.
-http.createServer(function(request, response) {
+var httpServer = http.createServer(function(request, response) {
   var uri = url.parse(request.url).pathname;
 
   // "Symlink" /logs/latest to the most recent log file (created during the current server session).
@@ -193,6 +174,20 @@ http.createServer(function(request, response) {
     });
   });
 }).listen(config.ports.http);
+
+// Starts the sync folder prepopulated with the embedded database. Also enables logging
+// to the logs folder.
+var checkerboard = new (require('checkerboard')).Server(httpServer, db, {'log': true, 'logDir': path.resolve(__dirname, 'public', 'logs')});
+
+// When the browser sends a message of the form {'channel': ..., 'message': ...}, checkerboard
+// will emit an event of the channel name. So, on the client we can send the following
+// messages and pick them up in the server without mucking around with checkerboard code.
+
+// Clean exit - triggers a restart in nodemon and forever-monitor.
+checkerboard.on('restart', function() { saveDB(); process.exit(0); });
+
+// Exit with condition code - prevents nodemon and forever-monitor from restarting automatically.
+checkerboard.on('stop', function() { saveDB(); process.exit(1); });
 
 // Debug info to stdout.
 console.log('HTTP port: ' + config.ports.http);
