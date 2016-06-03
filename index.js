@@ -200,7 +200,36 @@ checkerboard.on('restart', function() { saveDB(); process.exit(0); });
 // Exit with condition code - prevents nodemon and forever-monitor from restarting automatically.
 checkerboard.on('stop', function() { saveDB(); process.exit(1); });
 
-
-
 // Debug info to stdout.
 console.log('HTTP port: ' + config.ports.http);
+
+// Set up authentication service for GDrive
+var google = require('googleapis');
+var OAuth2 = google.auth.OAuth2;
+var auth_details = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'client_secret.json')));
+
+checkerboard.on('request-google-auth', function(conn, message) {
+  var oauth2Client = new OAuth2(auth_details.web.client_id, auth_details.web.client_secret, auth_details.web.redirect_uris[0]);
+
+  var scopes = [
+    'https://www.googleapis.com/auth/drive'
+  ];
+
+  var url = oauth2Client.generateAuthUrl({
+    'scope': scopes,
+    'state': message.redirect_uri
+  });
+
+  conn.sendObj('google-auth-url', {'url': url, 'id': message.id});
+});
+
+checkerboard.on('verify-google-auth', function(conn, message) {
+  var oauth2Client = new OAuth2(auth_details.web.client_id, auth_details.web.client_secret, auth_details.web.redirect_uris[0]);
+  oauth2Client.getToken(message.code, function(err, tokens) {
+    if (err) {
+      conn.sendObj('verify-google-auth-failed', {'code': message.code});
+    } else {
+      conn.sendObj('verify-google-auth-success', {'code': message.code});
+    }
+  });
+});
