@@ -5,6 +5,7 @@ var fs = require('fs');
 var path = require('path');
 var os = require('os');
 var dgram = require('dgram');
+var querystring = require('querystring');
 
 var ip = require('ip');
 var handlebars = require('handlebars');
@@ -31,7 +32,7 @@ var appsPath = path.resolve(base, config.apps);
 var snippetsPath = path.resolve(base, 'public', 'snippets');
 
 // Load the database. If it is empty, create a blank database.
-var db = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath)) : {classrooms:{}};
+var db = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath)) : {};
 
 // Store the config on the database (overwriting any config loaded directly from the database).
 // Config can be edited by the settings page, so we need to make it accessible.
@@ -40,6 +41,8 @@ db.config = config;
 /* saveDB() writes the embedded database (stored in memory) to the hard disk.
  */
 function saveDB() {
+  console.log("saving to ", dbPath)
+
   // Extract configuration data from the database object and write it to its own file.
   config = db.config;
   fs.writeFile(dbPath, JSON.stringify(db), function(err) {
@@ -52,7 +55,7 @@ function saveDB() {
 
 // Save the database every minute by default. It is also written on exit, so this
 // is just a contingency.
-var dbInterval = setInterval(saveDB, 60 * 1000);
+var dbInterval = setInterval(saveDB, 5000);
 
 // Each property in db.apps refers to an app (signified by its directory name).
 // E.g. the whiteboard app is stored in the whiteboard folder and thus has the
@@ -116,8 +119,9 @@ var httpServer = http.createServer(function(req, res) {
 }).listen(80);
 
 var httpsOptions = {
-  'key': fs.readFileSync(path.resolve(__dirname, 'domain.key')),
-  'cert': fs.readFileSync(path.resolve(__dirname, 'domain.crt'))
+  'key': fs.readFileSync(path.resolve(__dirname, 'privkey.pem')),
+  'cert': fs.readFileSync(path.resolve(__dirname, 'fullchain.pem')),
+  'ca ': fs.readFileSync(path.resolve(__dirname, 'chain.pem'))
 };
 
 // The infamous super simple static server.
@@ -156,6 +160,36 @@ var httpsServer = https.createServer(httpsOptions, function(request, response) {
     uri = "/logs/" + Math.max.apply(null, files) + '.log.initial';
   }
 
+  // HUGE security hole here! Do not put into production - for testing only!
+  if (request.method === "POST") {
+    var data = "";
+    request.on('data', function(newData) {
+      console.log("got data");
+      data += newData;
+    });
+
+    request.on('end', function() {
+      data = querystring.parse(data);
+
+      var writePath = data['path'];
+      var buf = data['contents[]'];
+      for (var i = 0; i < buf.length; i++)
+        buf[i] = parseInt(buf[i]);
+
+      if (writePath[0] === "/")
+        writePath = writePath.slice(1);
+
+      fs.writeFile(path.resolve(base, "public", writePath), new Buffer(buf), function(err) {
+        console.log(path.resolve(base, "public", writePath));
+        response.writeHead(err ? 500 : 200);
+        response.end();
+      });
+
+    });
+
+    return;
+  }
+
   // Serve files from the public folder.
   var filename = path.join(process.cwd(), "build", "public", uri);
 
@@ -182,7 +216,7 @@ var httpsServer = https.createServer(httpsOptions, function(request, response) {
       response.writeHead(200);
 
       // If the file is a .js file, use handlebars to interpolate variables.
-      response.write(path.extname(filename) === '.js' ? handlebars.compile(file)(config.ports) : file, "binary");
+      response.write(path.extname(filename) === '.js' && path.basename(filename, '.js') !== 'pdf' ? handlebars.compile(file)(config.ports) : file, "binary");
       response.end();
     });
   });
