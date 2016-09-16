@@ -164,15 +164,16 @@ var httpsServer = https.createServer(httpsOptions, function(request, response) {
   if (request.method === "POST") {
     var data = "";
     request.on('data', function(newData) {
-      console.log("got data");
+      console.log(newData.length, data.length);
       data += newData;
     });
 
     request.on('end', function() {
-      data = querystring.parse(data);
+      data = decodeURI(data).split("&").map(function(v) { return v.split("=")[1]});
 
-      var writePath = data['path'];
-      var buf = data['contents[]'];
+      var writePath = decodeURIComponent(data.shift());
+      var buf = data;
+
       for (var i = 0; i < buf.length; i++)
         buf[i] = parseInt(buf[i]);
 
