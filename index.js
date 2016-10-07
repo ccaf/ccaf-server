@@ -55,7 +55,7 @@ function saveDB() {
 
 // Save the database every minute by default. It is also written on exit, so this
 // is just a contingency.
-var dbInterval = setInterval(saveDB, 5000);
+var dbInterval = setInterval(saveDB, 30000);
 
 // Each property in db.apps refers to an app (signified by its directory name).
 // E.g. the whiteboard app is stored in the whiteboard folder and thus has the
@@ -119,9 +119,9 @@ var httpServer = http.createServer(function(req, res) {
 }).listen(80);
 
 var httpsOptions = {
-  'key': fs.readFileSync(path.resolve(__dirname, 'privkey.pem')),
-  'cert': fs.readFileSync(path.resolve(__dirname, 'fullchain.pem')),
-  'ca ': fs.readFileSync(path.resolve(__dirname, 'chain.pem'))
+  'key': fs.readFileSync('/etc/ssl/csteps.education.illinois.edu.key', 'utf8'),
+  'cert': fs.readFileSync('/etc/ssl/csteps.education.illinois.edu.crt', 'utf8'),
+  'ca ': fs.readFileSync('/etc/ssl/ca-chained-bundle.cer', 'utf8')
 };
 
 // The infamous super simple static server.
